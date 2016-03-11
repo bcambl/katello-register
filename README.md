@@ -21,8 +21,8 @@ name created by Katello for the content-view associated with the content-view.
   switch to a different activation-key/environment.
 
 #### Server Setup
-`register_server.py` should be configured on each Katello/Satellite 6 instance
-to run as a cron task. This script will collect all available activation-keys,
+`generate_registration_data.py` should be configured on each Katello/Satellite6
+instance to run as a cron task. This script will collect all available activation-keys,
 and relevant puppet environments and publish them to a json file in the standard
 apache pub directory. This communication happens over port 80 which is a required
 port for a Katello/Satellite implimentation. 
