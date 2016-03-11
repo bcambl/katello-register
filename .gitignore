@@ -1,0 +1,9 @@
+# ignore compiled python
+*.pyc
+
+# ignore registration save file
+.register.save
+
+# ignore log files
+log/
+*.log
