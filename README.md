@@ -31,26 +31,24 @@ port for a Katello/Satellite implimentation.
 you may want to investigate other options. That said, we are under the assumption that
 the your Satellite implimentation is behind firewalls on a private network.*
 
+You will need to update the following settings to suit your environment:
+- org_name - activation-key organization to export
 
 #### Client Setup
-`register.py` can be deployed to any directory on the client host.
+`register.py` can be deployed to any directory on the client host.  
 You will need to update the following settings to suit your environment:
-- tbd
-- tbd
+- katello_servers - specify Katello/Satellite servers
+- puppet_configuration_template - customize to your needs
 
-#### Host Compatability
+#### Compatability
 
 Servers OS | Service Version 
 -----------|----------------
-CentOS 7   | Katello 2.4
-RHEL 7.2   | Satellite 6.1.7
+RHEL 7.2   | Satellite 6.1.9
 
 
 Client OS | Python Version
 ----------|----------------
-CentOS 5  | 2.4.3
-CentOS 6  | 2.6.6
-CentOS 7  | 2.7.5
 RHEL 5.11 | 2.4.3
 RHEL 6.7  | 2.6.6
 RHEL 7.2  | 2.7.5
