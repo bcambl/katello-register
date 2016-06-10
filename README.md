@@ -1,46 +1,40 @@
 Katello/Satellite 6 Registration
 ================================
 
-### Description
-The goal of this project is to provide a system administrator the ability
-to register a host to a Katello instance from the client side without the
-need to knowing the activation-key and the auto-generated puppet environment
-name created by Katello for the content-view associated with the content-view.
+## Description
+Provides a semi-automated Katello registration and basic puppet configuration. 
+The `register.py` script can be run stand-alone or with the included server-side 
+script which will remove the need to remember/type a long activation-key or cryptic
+(Katello auto-generated) puppet environment names. 
 
-### Components
-- Server Script
-  Python script that lives on the Katello/Satellite servers and executed on
-  a schedule via crontab. This script gathers a small set of data from 
-  Katello via the Hammer CLI then publishes the data to a directory accessible
-  to your nodes via HTTP.
-- Client Script
-  This script should be deployed to hosts that you would like to register 
-  to your Katello/Satellite 6 instance. This script can be deployed as a
-  standard item on all host deployments to assist in the event a host
-  requires re-registered to a different Smart Proxy/Capsule or perhaps to
-  switch to a different activation-key/environment.
-
-#### Server Setup
-`generate_registration_data.py` should be configured on each Katello/Satellite6
-instance to run as a cron task. This script will collect all available activation-keys,
-and relevant puppet environments and publish them to a json file in the standard
-apache pub directory. This communication happens over port 80 which is a required
-port for a Katello/Satellite implimentation. 
-
-*Note: If you concider you activation keys and environment names a secret affair,
-you may want to investigate other options. That said, we are under the assumption that
-the your Satellite implimentation is behind firewalls on a private network.*
+## Components
+#### `generate_registration_data.py`  
+Should be configured as a cronjob on each Katello/Satellite6 instance 
+The script will collect all available activation-keys, and relevant
+puppet environments for an organization and publishes them as a json
+along side the ca-consumer package in the apache `http://<server-url>/pub`
+directory.
 
 You will need to update the following settings to suit your environment:
-- org_name - activation-key organization to export
+- org_name - Organization 'Name' of which to export activation-keys & puppet environments
 
-#### Client Setup
-`register.py` can be deployed to any directory on the client host.  
-You will need to update the following settings to suit your environment:
+#### `register.py` 
+Client side script that can be deployed to any directory on client hosts.  
+This script will perform the following:
+ - Append a host record to /etc/hosts for the chosen Katello instance
+ - Perform connectivity tests for required network ports
+ - Install the ca-consumer package for the chosen Katello instance
+ - Perform subscription-manager registration
+ - Install client packages (katello-agent, puppet)
+ - Configure Puppet using a puppet.conf template
+ - Execute Puppet run to generate client/server certificate exchange
+ - Enable/Start Puppet service
+
+Customize the following settings to suit your environment:
 - katello_servers - specify Katello/Satellite servers
-- puppet_configuration_template - customize to your needs
+- puppet_configuration_template - customize to your needs (default: noop true)
 
-#### Compatability
+## Compatability
 
 Servers OS | Service Version 
 -----------|----------------
@@ -53,5 +47,8 @@ RHEL 5.11 | 2.4.3
 RHEL 6.7  | 2.6.6
 RHEL 7.2  | 2.7.5
 
-#### TODO
+## TODO
+-
+-
+-
 
