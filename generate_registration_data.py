@@ -2,6 +2,7 @@
 import subprocess
 import shlex
 import json
+import sys
 import os
 import re
 """
@@ -34,8 +35,10 @@ def hammer(query, org=None):
     if org:
         cmd += ' --organization "%s"' % org
     output = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
-    return json.loads(output.communicate()[0])
-
+    try:
+        return json.loads(output.communicate()[0])
+    except ValueError, error:
+        sys.exit(error)
 
 def publish(data, directory):
     output_file = os.path.join(directory, 'registration.json')
