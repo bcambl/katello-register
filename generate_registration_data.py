@@ -44,7 +44,7 @@ def publish(data, directory):
     output_file = os.path.join(directory, 'registration.json')
     with open(output_file, 'w') as f:
         json.dump(data, f)
-    os.chmod(output_file, 0744)
+    os.chmod(output_file, 0644)
 
 
 def main():
