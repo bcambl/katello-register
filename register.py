@@ -202,7 +202,7 @@ def backup_configuration(file_path=None):
                 print('Backup created: %s.backup-%s' % (file_path, date))
             except OSError, e:
                 sys.exit("Unable to backup %s: %s" % (file_path, e))
-    except OSError as e:
+    except OSError, e:
         print("Unable to backup %s: File does not Exist!")
 
 
