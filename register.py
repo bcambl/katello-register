@@ -73,7 +73,7 @@ def run_command(command):
     :param command: command to execute as string
     """
     try:
-        subprocess.call(shlex.split(command))
+        subprocess.call(shlex.split(command.encode('ascii')))
     except Exception, e:
         sys.exit(e)
 
