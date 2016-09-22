@@ -259,6 +259,19 @@ def configure_puppet(server=None, activation_key=None):
         sys.exit(e)
 
 
+def puppet_cleanup_prompt():
+    puppet_ssl_path = '/var/lib/puppet/ssl'
+    if not os.path.exists(puppet_ssl_path):
+        return
+    print("\nExisting Puppet client certificate detected..\n"
+          "Would you like to cleanup/remove the local Puppet certificates?\n"
+          "This is typically only required if registering to a new 'Master'\n"
+          "Note: This client CA cert must be cleaned from 'Master' manually.")
+    choice = input("Choose [N/y]: ")
+    if choice in ['Y', 'y', 'yes']:
+        return True
+
+
 def delete_old_puppet_certificate():
     puppet_ssl_path = '/var/lib/puppet/ssl'
     if os.path.exists(puppet_ssl_path):
@@ -297,12 +310,14 @@ def main():
         test_katello_connection(server=katello_server, ports=required_ports)
         available_keys = get_available_activation_key(katello_server)
         activation_key = choose_activation_key(available_keys)
+        cleanup_puppet_ssl = puppet_cleanup_prompt()
         install_consumer_package(server=katello_server)
         katello_register(activation_key=activation_key)
         install_packages()
         backup_configuration(file_path='/etc/puppet/puppet.conf')
         configure_puppet(server=katello_server, activation_key=activation_key)
-        delete_old_puppet_certificate()
+        if cleanup_puppet_ssl:
+            delete_old_puppet_certificate()
         puppet_run()
         enable_services()
     except KeyboardInterrupt:
