@@ -66,7 +66,7 @@ def main():
                 activation_key['Environment'] = environment['Name']
         # Cleanup Elements you do not need:
         del activation_key['ID']
-        del activation_key['Consumed']
+        del activation_key['Host Limit']
         del activation_key['Content View']
         del activation_key['Content View Label']
         del activation_key['Lifecycle Environment']
