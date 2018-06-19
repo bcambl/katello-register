@@ -13,6 +13,11 @@ import re
 Katello Client Registration Script
 ==================================
 Register a host to a Katello/Satellite 6 Server.
+
+Notes:
+ - Script should use old-style file open/close to support RHEL5 (python 2.4.3)
+ - Strings should use old-style '%s' formatting to support RHEL5 (python 2.4.3)
+
 """
 __author__ = 'Blayne Campbell'
 __date__ = '2016-06-06'
@@ -49,7 +54,7 @@ pluginsync      = true
 report          = true
 ignoreschedules = true
 daemon          = false
-noop            = true
+noop            = %s
 ca_server       = %s
 certname        = %s
 server          = %s
@@ -76,6 +81,31 @@ def run_command(command):
         subprocess.call(shlex.split(command.encode('ascii')))
     except Exception, e:
         sys.exit(e)
+
+
+def determine_fqdn():
+    """ Subscription Manager and Puppet determine the FQDN of a host
+    differently. This function is to provide an consistent FQDN to be
+    use for both subscription-manager and puppet.
+    """
+    hostname, domain, fqdn = None, None, None
+    # first we will attempt to find the domain via /etc/resolv.conf
+    with open('/etc/resolv.conf', 'r') as resolv_conf:
+        for line in resolv_conf.readlines():
+            if re.search(r'^domain', line):
+                domain = line.split()[1]
+                break
+    # second we will retrieve the primary hostname (non-alias)
+    hostname = str(socket.gethostname()).split('.')[0]
+    if hostname and domain:
+        fqdn = '%s.%s' % (hostname, domain)
+    if not fqdn:
+        # if we were unable to determine both a hostname and domain
+        # above, we will resort to using the fqdn provided by the
+        # socket library. The problem with using this is that getfqdn()
+        # will return the first FQDN found even if it is based on an alias.
+        fqdn = socket.getfqdn()
+    return fqdn
 
 
 def select_katello_server(katello_servers=None):
@@ -202,7 +232,7 @@ def backup_configuration(file_path=None):
                 print('Backup created: %s.backup-%s' % (file_path, date))
             except OSError, e:
                 sys.exit("Unable to backup %s: %s" % (file_path, e))
-    except OSError, e:
+    except OSError as e:
         print("Unable to backup %s: File does not Exist!")
 
 
@@ -211,7 +241,7 @@ def install_consumer_package(server=None):
     """
     remove_package = None
     ts = TransactionSet()
-    print("Checking for existing Katello ca-consumer package..")
+    print("\nChecking for existing Katello ca-consumer package..")
     for i in ts.dbMatch():
         if re.search(r'katello-ca-consumer', i['name']):
             remove_package = i['name']
@@ -226,10 +256,42 @@ def install_consumer_package(server=None):
                                               consumer_package))
 
 
+def deploy_rhsm_hostname_fact_override():
+    """ Deploy /etc/rhsm/facts/katello.facts with hostname override(s)
+    Typically subscription-manager will attempt to register a new host
+    using the subscription-manager fact: network.hostname. This would sometimes
+    cause duplicate hosts in Satellite due to a 'Host' and 'Content Host'
+    hostname mis-match. This was addressed by implementing the new fact
+    network.hostname-override. Unfortunately this solution is only partially
+    implemented and subscription-manager is still using network.hostname.
+    We will override both facts to avoid any complications.
+    """
+    katello_fact_file = '/etc/rhsm/facts/katello.facts'
+    fact_data = {}
+    # Read/preserve existing fact overrides if the file exists
+    if os.path.exists(katello_fact_file):
+        fact_file = open(katello_fact_file, 'r')
+        fact_data = json.loads(fact_file.read())
+        fact_file.close()
+    host_fqdn = determine_fqdn()
+    # override subscription-manager facts
+    fact_data['network.fqdn'] = host_fqdn
+    fact_data['network.hostname'] = host_fqdn
+    fact_data['network.hostname-override'] = host_fqdn
+    # print the latest fact overrides to stdout
+    print('\nConfiguring subscription-manager fact overrides:')
+    for k, v in fact_data.items():
+        print("%s: %s" % (k, v))
+    # write the file with new fact data
+    fact_file = open(katello_fact_file, 'w')
+    fact_file.write(json.dumps(fact_data))
+    fact_file.close()
+
+
 def katello_register(activation_key=None):
-    print('un-registering..')
+    print('\nUn-Registering from current Satellite server:')
     run_command('%s unregister' % find_executable('subscription-manager'))
-    print('cleaning up local subscription data..')
+    print('cleaning up local subscription data:')
     run_command('%s clean' % find_executable('subscription-manager'))
     registration = '%s register --org="%s" --activationkey="%s"' \
         % (find_executable('subscription-manager'),
@@ -245,9 +307,10 @@ def install_packages():
                 % (find_executable('yum'), ' '.join(packages)))
 
 
-def configure_puppet(server=None, activation_key=None):
-    template = puppet_configuration_template % (server['fqdn'],
-                                                socket.getfqdn(),
+def configure_puppet(server=None, activation_key=None, noop='true'):
+    template = puppet_configuration_template % (noop,
+                                                server['fqdn'],
+                                                determine_fqdn(),
                                                 server['fqdn'],
                                                 activation_key['Environment'])
     try:
@@ -265,11 +328,27 @@ def puppet_cleanup_prompt():
         return
     print("\nExisting Puppet client certificate detected..\n"
           "Would you like to cleanup/remove the local Puppet certificates?\n"
-          "This is typically only required if registering to a new 'Master'\n"
-          "Note: This client CA cert must be cleaned from 'Master' manually.")
+          "This is typically only required to register with a new Satellite.\n"
+          "Note: You will prompted to clean the cert from Satellite manually.")
     choice = input("Choose [N/y]: ")
     if choice in ['Y', 'y', 'yes']:
         return True
+
+
+def puppet_noop_prompt():
+    """ Prompt user as to whether puppet should be configured in 'noop' mode.
+    Default: noop = true
+    """
+    noop = 'true'
+    print("\nBy default Puppet will be configured to NOT apply changes to\n"
+          "the host in attempt to protect against accidental puppet changes.\n"
+          "This can be modified at anytime via /etc/puppet/puppet.conf\n"
+          "Default: noop = true\n"
+          "\nAllow Puppet to apply changes to host? (ie: set noop = false)")
+    choice = input("Choose [N/y]: ")
+    if choice in ['Y', 'y', 'yes']:
+        noop = 'false'
+    return noop
 
 
 def delete_old_puppet_certificate():
@@ -311,11 +390,15 @@ def main():
         available_keys = get_available_activation_key(katello_server)
         activation_key = choose_activation_key(available_keys)
         cleanup_puppet_ssl = puppet_cleanup_prompt()
+        puppet_noop_state = puppet_noop_prompt()
         install_consumer_package(server=katello_server)
+        deploy_rhsm_hostname_fact_override()
         katello_register(activation_key=activation_key)
         install_packages()
         backup_configuration(file_path='/etc/puppet/puppet.conf')
-        configure_puppet(server=katello_server, activation_key=activation_key)
+        configure_puppet(noop=puppet_noop_state,
+                         server=katello_server,
+                         activation_key=activation_key)
         if cleanup_puppet_ssl:
             delete_old_puppet_certificate()
         puppet_run()
