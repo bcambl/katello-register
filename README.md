@@ -24,6 +24,7 @@ This script will perform the following:
  - Append a host record to /etc/hosts for the chosen Katello instance
  - Perform connectivity tests for required network ports
  - Install the ca-consumer package for the chosen Katello instance
+ - Deploy subscription-manager fqdn fact overrides (consistency with puppet certname)
  - Perform subscription-manager registration
  - Install client packages (katello-agent, puppet)
  - Configure Puppet using a puppet.conf template
@@ -38,14 +39,14 @@ Customize the following settings to suit your environment:
 
 Servers OS | Service Version 
 -----------|----------------
-RHEL 7.2   | Satellite 6.1.9
+RHEL 7.5   | Satellite 6.2.15
 
 
 Client OS | Python Version
 ----------|----------------
 RHEL 5.11 | 2.4.3
-RHEL 6.7  | 2.6.6
-RHEL 7.2  | 2.7.5
+RHEL 6.9  | 2.6.6
+RHEL 7.5  | 2.7.5
 
 ## TODO
 -
